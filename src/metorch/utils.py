@@ -32,3 +32,11 @@ def get_dataloaders(config):
         test_loader = DataLoader(test_set, batch_size=config['batch_size'])
         
         return test_loader
+
+def max_norm(model, max_val, eps=1e-8):
+    
+    for name, param in model.named_parameters():
+        if 'bias' not in name:
+            norm = param.norm(2, dim=0, keepdim=True)
+            desired = torch.clamp(norm, 0, max_val)
+            param = param * (desired / (eps + norm))

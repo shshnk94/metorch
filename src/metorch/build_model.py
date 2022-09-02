@@ -1,7 +1,6 @@
 import torch.nn as nn
 
-from ..models import Net
-
+from .models import Net
 
 MODEL_DICT = {'dropout_net': Net}
 #init here and put into GPU/CPU - later write build_model

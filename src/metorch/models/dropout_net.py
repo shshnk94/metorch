@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 #model - pick from Srivastava et.al
 class Net(nn.Module):
     
