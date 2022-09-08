@@ -8,7 +8,9 @@ def get_dataloaders(config):
     
     transform = transforms.Compose(
         [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+         #https://stackoverflow.com/a/68876047
+         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))])
+         #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     
     if config['mode'] == 'train':
         data = CIFAR10('./data', download=True, transform=transform)
