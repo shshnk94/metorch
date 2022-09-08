@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
+import torch.nn.functional as F
 
 from ray import tune
 
@@ -10,8 +11,10 @@ from .utils import get_dataloaders, max_norm
 from .models import Net
 from .test import test
 
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device('mps')
+torch.manual_seed(0)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device = torch.device('mps')
 
 MODEL_DICT = {'dropout_net': Net}
 #init here and put into GPU/CPU - later write build_model
@@ -35,7 +38,8 @@ def train(config):
     optimizer = optim.SGD(model.parameters(), lr=config['lr'], momentum=config['momentum'])
 
     #checking init_loss - add an if condition here.
-    print('Init loss: ', np.mean([criterion(model(x.to(device)), y.to(device)).item() for x, y in train_loader]))
+    with torch.no_grad():
+        print('Init loss: ', np.mean([criterion(model(x.to(device)), y.to(device)).item() for x, y in train_loader]))
 
     for epoch in range(config['epochs']):
     
@@ -49,11 +53,11 @@ def train(config):
         for x, y in train_loader:
         
             x, y = x.to(device), y.to(device)
-            optimizer.zero_grad()
         
             logits = model(x)
             loss = criterion(logits, y)
-        
+            
+            optimizer.zero_grad(True)
             loss.backward()    
             optimizer.step()
         
@@ -63,7 +67,7 @@ def train(config):
         training_loss = running_loss / len(train_loader)
     
         validation_loss, validation_metric = test(model, criterion, valid_loader)
-        # validation_loss, validation_metric = 0.0, 0.0
+        #validation_loss, validation_metric = 0.0, 0.0
     
-        tune.report(training_loss=training_loss, validation_loss=validation_loss, validation_metric=validation_metric)
+        #tune.report(training_loss=training_loss, validation_loss=validation_loss, validation_metric=validation_metric)
         print(f"Epoch: {epoch} Training loss: {training_loss}  Validation loss: {validation_loss} Validation metric: {validation_metric}")
