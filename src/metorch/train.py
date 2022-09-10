@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 import torch
@@ -5,18 +7,19 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ray import tune
+from ray.air import session
+from ray.train.torch import prepare_model
+from ray.air.checkpoint import Checkpoint
 
 from .utils import get_dataloaders, max_norm
 from .models import Net
 from .test import test
 
 torch.manual_seed(0)
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#device = torch.device('mps')
 
 MODEL_DICT = {'dropout_net': Net}
+
 #init here and put into GPU/CPU - later write build_model
 def build_model(config):
     
@@ -26,8 +29,8 @@ def build_model(config):
             nn.init.xavier_normal_(params)
         else:
             nn.init.constant_(params, 0)
-            
-    return model
+
+    return prepare_model(model) if config['use_ray'] else model
 
 #training loop
 def train(config):
@@ -37,18 +40,16 @@ def train(config):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=config['lr'], momentum=config['momentum'])
 
-    #checking init_loss - add an if condition here.
-    with torch.no_grad():
-        print('Init loss: ', np.mean([criterion(model(x.to(device)), y.to(device)).item() for x, y in train_loader]))
+    if not config['use_ray']:
+        progress = open(os.path.join(config['results_dir'], 'progress.csv'), 'w')
+        progress.write('Epoch, Training Loss, Validation Loss, Validation metric\n')
+        with torch.no_grad():
+            print('Init loss: ', np.mean([criterion(model(x.to(device)), y.to(device)).item() for x, y in train_loader]))
 
     for epoch in range(config['epochs']):
     
         model.train()
         running_loss = 0.0
-    
-        # for name, params in model.named_parameters():
-        #     if 'weight' in name and 'fc3' in name:
-        #         print(name, params.mean().item(), params.std().item())
             
         for x, y in train_loader:
         
@@ -65,9 +66,13 @@ def train(config):
             running_loss += loss.item()
         
         training_loss = running_loss / len(train_loader)
-    
         validation_loss, validation_metric = test(model, criterion, valid_loader)
-        #validation_loss, validation_metric = 0.0, 0.0
-    
-        #tune.report(training_loss=training_loss, validation_loss=validation_loss, validation_metric=validation_metric)
-        print(f"Epoch: {epoch} Training loss: {training_loss}  Validation loss: {validation_loss} Validation metric: {validation_metric}")
+
+        if config['use_ray']:
+            #checkpoint = Checkpoint.from_directory(config['results_dir'])
+            session.report({'training_loss':training_loss, 'validation_loss':validation_loss, 'validation_metric':validation_metric})
+        else:
+            torch.save(model.state_dict(), os.path.join(config['results_dir'], 'model.pth'))
+            progress.write(f"{epoch}, {training_loss}, {validation_loss}, {validation_metric}\n")
+            print(f"Epoch: {epoch} Training loss: {training_loss}  Validation loss: {validation_loss} Validation metric: {validation_metric}")
+
