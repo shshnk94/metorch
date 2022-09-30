@@ -1,12 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#model - pick from Srivastava et.al
-class Net(nn.Module):
+
+class DropoutNet(nn.Module):
     
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
         
+        self.drop_in= nn.Dropout(config['drop_in'])
+        self.drop_conv = nn.Dropout(config['drop_conv'])
+        self.drop_fc = nn.Dropout(config['drop_fc'])
+
         self.conv1 = nn.Conv2d(3, 96, 5, 1, 2)
         self.conv2 = nn.Conv2d(96, 128, 5, 1, 2)
         self.conv3 = nn.Conv2d(128, 256, 5, 1, 2)
@@ -19,14 +23,14 @@ class Net(nn.Module):
 
     def forward(self, x):
         
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = self.pool(F.relu(self.conv3(x)))
+        x = self.pool(F.relu(self.conv1(self.drop_in(x))))
+        x = self.pool(F.relu(self.conv2(self.drop_conv(x))))
+        x = self.pool(F.relu(self.conv3(self.drop_conv(x))))
         
-        x = torch.flatten(x, 1) # flatten all dimensions except batch
+        x = torch.flatten(x, 1)
         
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = F.relu(self.fc1(self.drop_fc(x)))
+        x = F.relu(self.fc2(self.drop_fc(x)))
+        x = self.fc3(self.drop_fc(x))
         
         return x

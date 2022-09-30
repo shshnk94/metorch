@@ -1,1 +1,1 @@
-from .dropout_net import Net
+from .dropout_net import DropoutNet

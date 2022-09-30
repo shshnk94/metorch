@@ -12,18 +12,18 @@ from ray.train.torch import prepare_model
 from ray.air.checkpoint import Checkpoint
 
 from .utils import get_dataloaders, max_norm
-from .models import Net
+from .models import DropoutNet
 from .test import test
 
 torch.manual_seed(0)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-MODEL_DICT = {'dropout_net': Net}
+MODEL_DICT = {'dropout_net': DropoutNet}
 
 #init here and put into GPU/CPU - later write build_model
 def build_model(config):
     
-    model = MODEL_DICT[config['model']]().to(device)
+    model = MODEL_DICT[config['model']](config).to(device)
     for name, params in model.named_parameters():
         if 'weight' in name:
             nn.init.xavier_normal_(params)
@@ -52,7 +52,6 @@ def train(config):
         running_loss = 0.0
             
         for x, y in train_loader:
-        
             x, y = x.to(device), y.to(device)
         
             logits = model(x)
