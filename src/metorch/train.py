@@ -30,11 +30,11 @@ def build_model(config):
         else:
             nn.init.constant_(params, 0)
 
-    return prepare_model(model) if config['use_ray'] else model
+    return model
 
 #training loop
 def train(config):
-    
+
     train_loader, valid_loader = get_dataloaders(config)
     model = build_model(config)
     criterion = nn.CrossEntropyLoss()
